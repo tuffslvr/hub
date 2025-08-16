@@ -1,12 +1,10 @@
---// SilverUI Pro v2 (LOCK-IN)
---// Responsive + stable tabs + smooth animations + mobile friendly
+--// SilverUI Pro v3 (MAX Smooth)
+--// Smooth animations, stable tabs, Lucide-style icon mapping
 --// by tuffslvr
 
-local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
-local TS = game:GetService("TweenService")
-local RunS = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
+local TS  = game:GetService("TweenService")
+local RS  = game:GetService("RunService")
 
 local THEME = {
     bg     = Color3.fromRGB(20,20,22),
@@ -22,7 +20,7 @@ local THEME = {
 local function corner(o, r) local u=Instance.new("UICorner",o);u.CornerRadius=UDim.new(0,r or 12);return u end
 local function stroke(o,c,t) local s=Instance.new("UIStroke",o);s.Color=c or THEME.line;s.Thickness=t or 1; s.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; return s end
 local function pad(o,p) local u=Instance.new("UIPadding",o);u.PaddingLeft=UDim.new(0,p);u.PaddingRight=UDim.new(0,p);u.PaddingTop=UDim.new(0,p);u.PaddingBottom=UDim.new(0,p);return u end
-local function tween(i,info,props) TS:Create(i,info,props):Play() end
+local function t(i,time,props,ease) TS:Create(i,TweenInfo.new(time or .22,ease or Enum.EasingStyle.Sine, Enum.EasingDirection.Out),props):Play() end
 
 local function getViewport()
     local cam = workspace.CurrentCamera
@@ -31,9 +29,7 @@ end
 
 local function mountParent()
     local cg = game:GetService("CoreGui")
-    local ok,uiroot = pcall(function()
-        return gethui and gethui() or cg
-    end)
+    local ok,uiroot = pcall(function() return gethui and gethui() or cg end)
     return ok and uiroot or cg
 end
 
@@ -42,7 +38,12 @@ local SilverUI = {
     _visible = true,
     ToggleKey = Enum.KeyCode.RightShift,
     MobileButton = nil,
+    _LucideMap = {} -- name -> rbxassetid (string "rbxassetid://123")
 }
+
+function SilverUI.SetLucideMap(map)
+    for k,v in pairs(map or {}) do SilverUI._LucideMap[string.lower(k)] = v end
+end
 
 -- ========= Drag (pc+touch) + screen clamp =========
 local function MakeDraggable(frame, handle)
@@ -73,13 +74,11 @@ local function MakeDraggable(frame, handle)
             end)
         end
     end)
-
     handle.InputChanged:Connect(function(input)
         if (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) and dragging then
             update(input)
         end
     end)
-
     UIS.InputChanged:Connect(function(input)
         if (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) and dragging then
             update(input)
@@ -108,7 +107,8 @@ local function EnsureMobileButton()
     local b = Instance.new("TextButton")
     b.Name="SilverShow"
     b.Size=UDim2.new(0,140,0,44)
-    b.Position=UDim2.new(0.5,-70,0.86,0)
+    b.AnchorPoint = Vector2.new(.5,.5)
+    b.Position=UDim2.new(0.5,0,0.88,0)
     b.Text="Show Silver"
     b.TextColor3=THEME.text
     b.Font=Enum.Font.GothamMedium
@@ -126,9 +126,9 @@ local function EnsureMobileButton()
 end
 EnsureMobileButton()
 
--- ========= Loader (simple Luna-like) =========
+-- ========= Loader (simple) =========
 local function ShowLoader(appName, subtitle, duration)
-    duration = duration or 1.2
+    duration = duration or 1.0
     local sg = Instance.new("ScreenGui")
     sg.Name="SilverUILoader"
     sg.IgnoreGuiInset = true
@@ -139,14 +139,15 @@ local function ShowLoader(appName, subtitle, duration)
     bg.BackgroundColor3 = THEME.bg
     bg.BorderSizePixel=0
 
+    local w = math.clamp(getViewport().X*0.36,300,420)
     local panel = Instance.new("Frame", bg)
-    panel.Size = UDim2.new(0,math.clamp(getViewport().X*0.36,300,420),0,150)
-    panel.Position = UDim2.new(0.5,-panel.Size.X.Offset/2,0.5,-75)
+    panel.Size = UDim2.new(0,w,0,150)
+    panel.AnchorPoint = Vector2.new(.5,.5)
+    panel.Position = UDim2.new(.5,0,.5,0)
     panel.BackgroundColor3 = THEME.panel
     panel.BorderSizePixel=0
     panel.BackgroundTransparency = 1
-    corner(panel,16); stroke(panel,THEME.line,1)
-    pad(panel,16)
+    corner(panel,16); stroke(panel,THEME.line,1); pad(panel,16)
 
     local logo = Instance.new("Frame", panel)
     logo.Size = UDim2.new(0,34,0,34)
@@ -191,17 +192,17 @@ local function ShowLoader(appName, subtitle, duration)
     fill.BorderSizePixel=0
     corner(fill,8)
 
-    tween(panel, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency=0})
-    tween(logo,  TweenInfo.new(0.22), {BackgroundTransparency=0})
-    tween(title, TweenInfo.new(0.26), {TextTransparency=0})
-    tween(sub,   TweenInfo.new(0.28), {TextTransparency=0})
-    tween(bar,   TweenInfo.new(0.28), {BackgroundTransparency=0})
-    tween(fill,  TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1,0,1,0)})
+    t(panel, .22, {BackgroundTransparency=0})
+    t(logo,  .24, {BackgroundTransparency=0})
+    t(title, .26, {TextTransparency=0})
+    t(sub,   .28, {TextTransparency=0})
+    t(bar,   .28, {BackgroundTransparency=0})
+    t(fill, duration, {Size = UDim2.new(1,0,1,0)}, Enum.EasingStyle.Quad)
 
     task.wait(duration+0.05)
-    tween(bg, TweenInfo.new(0.22), {BackgroundTransparency = 1})
-    tween(panel, TweenInfo.new(0.18), {BackgroundTransparency = 1})
-    task.wait(0.22)
+    t(bg, .24, {BackgroundTransparency = 1})
+    t(panel,.22, {BackgroundTransparency = 1})
+    task.wait(.24)
     sg:Destroy()
 end
 
@@ -223,46 +224,64 @@ function Win:_switchTo(idx)
     local newPage = self.Pages[idx]; if not newPage then return end
     local oldPage = self.ActiveIndex and self.Pages[self.ActiveIndex]
 
-    -- hide old
-    if oldPage then
-        oldPage.Visible = false
-    end
-
-    -- slide+fade in new (simple: slide from slight offset)
+    if oldPage then oldPage.Visible = false end
     newPage.Visible = true
     newPage.Position = UDim2.new(0,8,0,0)
-    newPage.BackgroundTransparency = 1
-    tween(newPage, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0,0,0,0)})
-    tween(newPage, TweenInfo.new(0.12), {BackgroundTransparency = 1}) -- (page bg is transparent; we just use motion)
+    t(newPage, .20, {Position = UDim2.new(0,0,0,0)}, Enum.EasingStyle.Sine)
 
     self.ActiveIndex = idx
-
-    -- button state
     for i,btn in ipairs(self._tabButtons) do
-        btn.TextColor3 = (i==idx) and THEME.text or THEME.dim
-        btn.BackgroundTransparency = (i==idx) and 0.06 or 1
+        local active = (i==idx)
+        btn.TextLabel.TextColor3 = active and THEME.text or THEME.dim
+        btn.BackgroundTransparency = active and 0.06 or 1
+        if btn.ImageLabel then btn.ImageLabel.ImageColor3 = active and THEME.text or THEME.dim end
     end
 end
 
-function Win:CreateTab(name, icon)
+function Win:CreateTab(name, iconName)
+    -- button container
     local b = Instance.new("TextButton")
     b.Size = UDim2.new(1,0,0,36)
     b.BackgroundTransparency=1
-    b.Text = (icon and (icon.."  ") or "")..name
-    b.Font=Enum.Font.Gotham
-    b.TextColor3=THEME.dim
-    b.TextXAlignment=Enum.TextXAlignment.Left
-    b.TextSize=14
     b.AutoButtonColor=false
     b.Parent = self.TabList
 
-    b.MouseEnter:Connect(function()
-        if b.TextColor3==THEME.dim then tween(b,TweenInfo.new(0.1),{BackgroundTransparency=0.2}) end
-    end)
-    b.MouseLeave:Connect(function()
-        if b.TextColor3==THEME.dim then tween(b,TweenInfo.new(0.1),{BackgroundTransparency=1}) end
-    end)
+    -- icon (Lucide mapping)
+    local ic = Instance.new("ImageLabel")
+    ic.BackgroundTransparency = 1
+    ic.Size = UDim2.new(0,18,0,18)
+    ic.Position = UDim2.new(0,6,0.5,-9)
+    ic.Parent = b
 
+    if iconName and SilverUI._LucideMap[string.lower(iconName)] then
+        ic.Image = SilverUI._LucideMap[string.lower(iconName)]
+    else
+        ic.Image = "" -- fallback: none
+    end
+    ic.ImageColor3 = THEME.dim
+
+    -- text
+    local txt = Instance.new("TextLabel")
+    txt.BackgroundTransparency=1
+    txt.TextXAlignment=Enum.TextXAlignment.Left
+    txt.TextColor3=THEME.dim
+    txt.Font=Enum.Font.Gotham
+    txt.TextSize=14
+    txt.Text = name
+    txt.Size = UDim2.new(1,-30,1,0)
+    txt.Position = UDim2.new(0,30,0,0)
+    txt.Parent = b
+
+    -- underline (selected indicator)
+    local ul = Instance.new("Frame")
+    ul.Size = UDim2.new(1,0,0,1)
+    ul.Position = UDim2.new(0,0,1,-1)
+    ul.BackgroundColor3 = THEME.line
+    ul.BackgroundTransparency = .5
+    ul.BorderSizePixel=0
+    ul.Parent = b
+
+    -- page
     local page = Instance.new("ScrollingFrame")
     page.Name = name.."_Page"
     page.Size = UDim2.new(1,0,1,0)
@@ -280,19 +299,15 @@ function Win:CreateTab(name, icon)
     layout.Padding = UDim.new(0,8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
 
+    b.Activated:Connect(function() self:_switchTo(page.LayoutOrder) end)
+
+    page.LayoutOrder = #self.Pages+1
     table.insert(self.Pages, page)
+    b.TextLabel = txt; b.ImageLabel = ic
     table.insert(self._tabButtons, b)
 
-    local thisIndex = #self.Pages
-    b.Activated:Connect(function()
-        self:_switchTo(thisIndex)
-    end)
+    if not self.ActiveIndex then self:_switchTo(1) end
 
-    if not self.ActiveIndex then
-        self:_switchTo(thisIndex)
-    end
-
-    -- Tab API
     local T = {}
     function T:Button(o) return self._w:_elButton(page,o) end
     function T:Toggle(o) return self._w:_elToggle(page,o) end
@@ -305,7 +320,7 @@ function Win:CreateTab(name, icon)
     return T
 end
 
--- Elements
+-- Elements (same API, smoother visuals)
 function Win:_elButton(parent, o)
     o=o or {}
     local f = mkSection(parent,44)
@@ -318,22 +333,16 @@ function Win:_elButton(parent, o)
     b.TextSize=14
     b.Text = o.Text or "Button"
     b.AutoButtonColor=false
-
-    b.MouseEnter:Connect(function() tween(f,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel}) end)
-    b.MouseLeave:Connect(function() tween(f,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel2}) end)
     b.Activated:Connect(function()
-        tween(f,TweenInfo.new(0.06),{BackgroundColor3=THEME.panel})
-        task.delay(0.08,function() tween(f,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel2}) end)
+        t(f,.08,{BackgroundColor3=THEME.panel}); task.delay(.1,function() t(f,.16,{BackgroundColor3=THEME.panel2}) end)
         if o.Callback then task.spawn(o.Callback) end
     end)
-
     return b
 end
 
 function Win:_elToggle(parent,o)
     o=o or {}
     local f=mkSection(parent,44)
-
     local lbl=Instance.new("TextLabel",f)
     lbl.Size=UDim2.new(1,-54,1,0)
     lbl.BackgroundTransparency=1
@@ -343,15 +352,15 @@ function Win:_elToggle(parent,o)
     lbl.TextSize=14
     lbl.Text=o.Text or "Toggle"
 
-    local t=Instance.new("TextButton",f)
-    t.Size=UDim2.new(0,40,0,24)
-    t.Position=UDim2.new(1,-42,0.5,-12)
-    t.Text=""
-    t.AutoButtonColor=false
-    t.BackgroundColor3=Color3.fromRGB(70,70,76)
-    corner(t,12)
+    local tbtn=Instance.new("TextButton",f)
+    tbtn.Size=UDim2.new(0,40,0,24)
+    tbtn.Position=UDim2.new(1,-42,0.5,-12)
+    tbtn.Text=""
+    tbtn.AutoButtonColor=false
+    tbtn.BackgroundColor3=Color3.fromRGB(70,70,76)
+    corner(tbtn,12)
 
-    local knob=Instance.new("Frame",t)
+    local knob=Instance.new("Frame",tbtn)
     knob.Size=UDim2.new(0,20,0,20)
     knob.Position=UDim2.new(0,2,0.5,-10)
     knob.BackgroundColor3=THEME.bg
@@ -360,13 +369,11 @@ function Win:_elToggle(parent,o)
 
     local state = o.Default or false
     local function apply()
-        tween(t,TweenInfo.new(0.15),{BackgroundColor3 = state and THEME.ok or Color3.fromRGB(70,70,76)})
-        tween(knob,TweenInfo.new(0.15),{Position = state and UDim2.new(1,-22,0.5,-10) or UDim2.new(0,2,0.5,-10)})
+        t(tbtn,.18,{BackgroundColor3 = state and THEME.ok or Color3.fromRGB(70,70,76)}, Enum.EasingStyle.Quad)
+        t(knob,.18,{Position = state and UDim2.new(1,-22,0.5,-10) or UDim2.new(0,2,0.5,-10)}, Enum.EasingStyle.Sine)
     end
     apply()
-    t.Activated:Connect(function()
-        state=not state; apply(); if o.Callback then task.spawn(o.Callback,state) end
-    end)
+    tbtn.Activated:Connect(function() state=not state; apply(); if o.Callback then task.spawn(o.Callback,state) end end)
     return {Set=function(_,v) state=v; apply() end, Get=function() return state end}
 end
 
@@ -399,7 +406,7 @@ function Win:_elSlider(parent,o)
     corner(fill,8)
 
     local txt=Instance.new("TextLabel",bar)
-    txt.Size=UDim2.new(0,120,1,0)
+    txt.Size=UDim2.new(0,140,1,0)
     txt.BackgroundTransparency=1
     txt.TextColor3=THEME.text
     txt.Font=Enum.Font.Gotham
@@ -410,7 +417,7 @@ function Win:_elSlider(parent,o)
     local function setFromX(x)
         local p = math.clamp((x - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
         val = math.floor(min + p*(max-min))
-        fill.Size=UDim2.new((val-min)/(max-min),0,1,0)
+        t(fill,.08,{Size=UDim2.new((val-min)/(max-min),0,1,0)})
         txt.Text=("%d%s"):format(val, o.Suffix and (" "..o.Suffix) or "")
         if o.Callback then o.Callback(val) end
     end
@@ -492,11 +499,7 @@ function Win:_elInput(parent,o)
     tb.TextColor3=THEME.text
     tb.Font=Enum.Font.Gotham
     tb.TextSize=14
-
-    tb.FocusLost:Connect(function(enter)
-        if o.Callback then o.Callback(tb.Text, enter) end
-    end)
-
+    tb.FocusLost:Connect(function(enter) if o.Callback then o.Callback(tb.Text, enter) end end)
     return tb
 end
 
@@ -538,9 +541,7 @@ function Win:_elColor(parent,o)
         corner(b,8); stroke(b,THEME.line,1)
         b.Activated:Connect(function() color=c; sw.BackgroundColor3=c; pop.Visible=false; if o.Callback then o.Callback(color) end end)
     end
-
     sw.Activated:Connect(function() pop.Visible=not pop.Visible end)
-
     return {Set=function(_,c) color=c; sw.BackgroundColor3=c end, Get=function() return color end}
 end
 
@@ -573,22 +574,17 @@ function Win:_elKeybind(parent,o)
         local conn; conn=UIS.InputBegan:Connect(function(input,gpe)
             if gpe then return end
             if input.KeyCode ~= Enum.KeyCode.Unknown then
-                current=input.KeyCode; kb.Text=current.Name
-                conn:Disconnect()
+                current=input.KeyCode; kb.Text=current.Name; conn:Disconnect()
             end
         end)
     end)
-
     UIS.InputBegan:Connect(function(input,gpe)
-        if not gpe and current and input.KeyCode==current then
-            if o.Callback then o.Callback() end
-        end
+        if not gpe and current and input.KeyCode==current then if o.Callback then o.Callback() end end
     end)
-
     return {Get=function() return current end, Set=function(_,k) current=k; kb.Text=k and k.Name or "None" end}
 end
 
--- ========= CreateWindow (responsive + animations) =========
+-- ========= CreateWindow (responsive + smoother) =========
 function SilverUI:CreateWindow(o)
     o=o or {}
     if o.Loading ~= false then
@@ -601,7 +597,6 @@ function SilverUI:CreateWindow(o)
     sg.ResetOnSpawn=false
     sg.Parent=parent
 
-    -- responsive size
     local vp = getViewport()
     local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
     local W = isMobile and math.clamp(math.floor(vp.X*0.9), 300, 520) or (o.Width or 720)
@@ -609,13 +604,13 @@ function SilverUI:CreateWindow(o)
 
     local main=Instance.new("Frame",sg)
     main.Size=UDim2.new(0,W,0,H)
-    main.Position=UDim2.new(0.5,-W/2,0.5,-H/2)
+    main.AnchorPoint = Vector2.new(.5,.5)
+    main.Position=UDim2.new(.5,0,.5,0)
     main.BackgroundColor3=THEME.bg
     main.BorderSizePixel=0
     main.ClipsDescendants=false
     corner(main,14); stroke(main,THEME.line,1)
 
-    -- top
     local top=Instance.new("Frame",main)
     top.Size=UDim2.new(1,0,0,44)
     top.BackgroundColor3=THEME.panel
@@ -640,21 +635,16 @@ function SilverUI:CreateWindow(o)
     minB.BackgroundColor3=THEME.panel2
     minB.AutoButtonColor=false
     corner(minB,10); stroke(minB,THEME.line,1)
-    minB.MouseEnter:Connect(function() tween(minB,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel}) end)
-    minB.MouseLeave:Connect(function() tween(minB,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel2}) end)
 
     local closeB=Instance.new("TextButton",top)
     closeB.Size=UDim2.new(0,32,0,28)
     closeB.Position=UDim2.new(1,-36,0.5,-14)
     closeB.Text="X"
     closeB.TextColor3=THEME.text
-    closeB.BackgroundColor3=THEME.panel2 -- uyumlu, kırmızı değil
+    closeB.BackgroundColor3=THEME.panel2
     closeB.AutoButtonColor=false
     corner(closeB,10); stroke(closeB,THEME.line,1)
-    closeB.MouseEnter:Connect(function() tween(closeB,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel}) end)
-    closeB.MouseLeave:Connect(function() tween(closeB,TweenInfo.new(0.12),{BackgroundColor3=THEME.panel2}) end)
 
-    -- left tabs
     local tabs=Instance.new("Frame",main)
     tabs.Size=UDim2.new(0, math.min(184, math.max(140, math.floor(W*0.28))), 1, -(44+12))
     tabs.Position=UDim2.new(0,8,0,44+8)
@@ -664,7 +654,6 @@ function SilverUI:CreateWindow(o)
     corner(tabs,12); stroke(tabs,THEME.line,1); pad(tabs,8)
     local tlist=Instance.new("UIListLayout",tabs); tlist.Padding=UDim.new(0,6)
 
-    -- content
     local content=Instance.new("Frame",main)
     local leftW = tabs.Size.X.Offset + 16
     content.Size=UDim2.new(1,-(leftW+8),1,-(44+16))
@@ -674,13 +663,13 @@ function SilverUI:CreateWindow(o)
     content.ClipsDescendants=true
     corner(content,12); stroke(content,THEME.line,1); pad(content,8)
 
-    -- open anim
+    -- open anim (smoother)
     main.BackgroundTransparency=1; top.BackgroundTransparency=1; tabs.BackgroundTransparency=1; content.BackgroundTransparency=1
-    tween(main,TweenInfo.new(0.18,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{BackgroundTransparency=0})
+    t(main,.24,{BackgroundTransparency=0},Enum.EasingStyle.Quad)
     task.delay(0.02,function()
-        tween(top,TweenInfo.new(0.14),{BackgroundTransparency=0})
-        tween(tabs,TweenInfo.new(0.14),{BackgroundTransparency=0})
-        tween(content,TweenInfo.new(0.14),{BackgroundTransparency=0})
+        t(top,.22,{BackgroundTransparency=0})
+        t(tabs,.22,{BackgroundTransparency=0})
+        t(content,.22,{BackgroundTransparency=0})
     end)
 
     local WN=setmetatable({
@@ -688,45 +677,30 @@ function SilverUI:CreateWindow(o)
         Pages={}, _tabButtons={}, ActiveIndex=nil
     }, Win)
 
-    -- minimize / close
     local minimized=false
     minB.Activated:Connect(function()
         minimized = not minimized
         if minimized then
             content.Visible=false; tabs.Visible=false
-            tween(main,TweenInfo.new(0.16),{Size=UDim2.new(0,W,0,60)})
+            t(main,.22,{Size=UDim2.new(0,W,0,60)})
         else
-            tween(main,TweenInfo.new(0.16),{Size=UDim2.new(0,W,0,H)})
-            task.delay(0.02,function() tabs.Visible=true; content.Visible=true end)
+            t(main,.22,{Size=UDim2.new(0,W,0,H)}); task.delay(.02,function() tabs.Visible=true; content.Visible=true end)
         end
     end)
-
-    closeB.Activated:Connect(function()
-        tween(main,TweenInfo.new(0.16),{BackgroundTransparency=1})
-        task.wait(0.16)
-        SetVisible(false)
-    end)
+    closeB.Activated:Connect(function() t(main,.22,{BackgroundTransparency=1}); task.wait(.22); SetVisible(false) end)
 
     -- drag + clamp
     MakeDraggable(main, top)
-
-    -- keep clamped on resize/rotation
-    local rsConn
-    rsConn = RunS.RenderStepped:Connect(function()
-        if not WN or not WN.Main or not WN.Main.Parent then
-            rsConn:Disconnect(); return
-        end
+    RS.RenderStepped:Connect(function()
         local vp = getViewport()
-        local pos = WN.Main.Position
-        local size = WN.Main.AbsoluteSize
-        local x = math.clamp(pos.X.Offset, 0, math.max(0, vp.X - size.X))
-        local y = math.clamp(pos.Y.Offset, 0, math.max(0, vp.Y - size.Y))
-        WN.Main.Position = UDim2.new(pos.X.Scale, x, pos.Y.Scale, y)
+        local pos = main.Position; local size = main.AbsoluteSize
+        local x = math.clamp(pos.X.Offset, -vp.X/2 + size.X/2, vp.X/2 - size.X/2)
+        local y = math.clamp(pos.Y.Offset, -vp.Y/2 + size.Y/2, vp.Y/2 - size.Y/2)
+        main.Position = UDim2.new(.5,x,.5,y)
     end)
 
     table.insert(SilverUI._wins, WN)
     return WN
 end
 
--- ======= Public return =======
 return SilverUI
