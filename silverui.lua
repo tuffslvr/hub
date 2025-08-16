@@ -1,246 +1,263 @@
--- SilverUI Library
--- Mobil + PC uyumlu, dark tema
+--// SilverUI Advanced Library
+--// by tuffslvr
 
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
 
 local SilverUI = {}
 SilverUI.__index = SilverUI
 
--- UI Screen
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SilverUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui")
+-- Main window storage
+SilverUI.Windows = {}
+SilverUI.MobileButton = nil
+SilverUI.UIVisible = true
+SilverUI.ToggleKey = Enum.KeyCode.RightShift -- default keybind
 
--- Window
-function SilverUI:CreateWindow(config)
-    local Window = Instance.new("Frame")
-    Window.Name = "Window"
-    Window.Size = UDim2.new(0, 450, 0, 300)
-    Window.Position = UDim2.new(0.5, -225, 0.5, -150)
-    Window.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    Window.BorderSizePixel = 0
-    Window.Active = true
-    Window.Draggable = true
-    Window.Parent = ScreenGui
+-- Drag function
+local function MakeDraggable(frame, dragHandle)
+    dragHandle = dragHandle or frame
+    local dragging, dragInput, startPos, startInput
 
-    -- UICorner
-    Instance.new("UICorner", Window).CornerRadius = UDim.new(0, 10)
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startPos = frame.Position
+            startInput = input
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    dragHandle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - startInput.Position
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Toggle visibility
+local function SetVisible(state)
+    SilverUI.UIVisible = state
+    for _, win in pairs(SilverUI.Windows) do
+        win.Frame.Visible = state
+    end
+    if SilverUI.MobileButton then
+        SilverUI.MobileButton.Visible = not state
+    end
+end
+
+-- Listen for PC keybind
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == SilverUI.ToggleKey then
+        SetVisible(not SilverUI.UIVisible)
+    end
+end)
+
+-- Create floating mobile button
+local function CreateMobileButton()
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0,120,0,40)
+    button.Position = UDim2.new(0.5,-60,0.9,0)
+    button.Text = "Show Silver"
+    button.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    button.TextColor3 = Color3.new(1,1,1)
+    button.BorderSizePixel = 0
+    button.Visible = false
+    button.Active = true
+    button.Draggable = true
+    button.Parent = game:GetService("CoreGui")
+
+    button.MouseButton1Click:Connect(function()
+        SetVisible(true)
+    end)
+
+    SilverUI.MobileButton = button
+end
+CreateMobileButton()
+
+-- Create Window
+function SilverUI:CreateWindow(opts)
+    opts = opts or {}
+    local name = opts.Name or "SilverUI Window"
+
+    -- ScreenGui
+    local gui = Instance.new("ScreenGui")
+    gui.Name = name
+    gui.Parent = game:GetService("CoreGui")
+
+    -- Main frame
+    local main = Instance.new("Frame")
+    main.Size = UDim2.new(0,500,0,300)
+    main.Position = UDim2.new(0.5,-250,0.5,-150)
+    main.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    main.BorderSizePixel = 0
+    main.Visible = true
+    main.Parent = gui
 
     -- Topbar
-    local Topbar = Instance.new("Frame")
-    Topbar.Size = UDim2.new(1, 0, 0, 30)
-    Topbar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    Topbar.BorderSizePixel = 0
-    Topbar.Parent = Window
-    Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 10)
+    local topbar = Instance.new("Frame")
+    topbar.Size = UDim2.new(1,0,0,30)
+    topbar.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    topbar.BorderSizePixel = 0
+    topbar.Parent = main
 
-    local Title = Instance.new("TextLabel")
-    Title.Text = config.Name or "SilverUI"
-    Title.Size = UDim2.new(1, -60, 1, 0)
-    Title.Position = UDim2.new(0, 10, 0, 0)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 14
-    Title.BackgroundTransparency = 1
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Parent = Topbar
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1,-60,1,0)
+    title.Position = UDim2.new(0,5,0,0)
+    title.BackgroundTransparency = 1
+    title.Text = name
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = topbar
 
-    -- Close Button
-    local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -35, 0, 0)
-    CloseBtn.Text = "X"
-    CloseBtn.Font = Enum.Font.GothamBold
-    CloseBtn.TextSize = 14
-    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseBtn.BackgroundTransparency = 1
-    CloseBtn.Parent = Topbar
-    CloseBtn.MouseButton1Click:Connect(function()
-        Window.Visible = false
+    -- Close & Minimize
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.new(0,30,1,0)
+    close.Position = UDim2.new(1,-30,0,0)
+    close.BackgroundTransparency = 1
+    close.Text = "X"
+    close.TextColor3 = Color3.fromRGB(255,80,80)
+    close.Parent = topbar
+
+    local minimize = Instance.new("TextButton")
+    minimize.Size = UDim2.new(0,30,1,0)
+    minimize.Position = UDim2.new(1,-60,0,0)
+    minimize.BackgroundTransparency = 1
+    minimize.Text = "-"
+    minimize.TextColor3 = Color3.new(1,1,1)
+    minimize.Parent = topbar
+
+    -- Tabs frame
+    local tabs = Instance.new("Frame")
+    tabs.Size = UDim2.new(0,120,1,-30)
+    tabs.Position = UDim2.new(0,0,0,30)
+    tabs.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    tabs.BorderSizePixel = 0
+    tabs.Parent = main
+
+    -- Content frame
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1,-120,1,-30)
+    content.Position = UDim2.new(0,120,0,30)
+    content.BackgroundColor3 = Color3.fromRGB(35,35,35)
+    content.BorderSizePixel = 0
+    content.Parent = main
+
+    local uiList = Instance.new("UIListLayout")
+    uiList.Padding = UDim.new(0,5)
+    uiList.FillDirection = Enum.FillDirection.Vertical
+    uiList.SortOrder = Enum.SortOrder.LayoutOrder
+    uiList.Parent = content
+
+    -- tab storage
+    local winObj = {
+        Frame = main,
+        Tabs = {},
+        Content = content,
+        TabHolder = tabs,
+    }
+    setmetatable(winObj, SilverUI)
+
+    -- Functions
+    close.MouseButton1Click:Connect(function()
+        SetVisible(false)
     end)
 
-    -- Minimize
-    local MinBtn = Instance.new("TextButton")
-    MinBtn.Size = UDim2.new(0, 30, 0, 30)
-    MinBtn.Position = UDim2.new(1, -70, 0, 0)
-    MinBtn.Text = "-"
-    MinBtn.Font = Enum.Font.GothamBold
-    MinBtn.TextSize = 14
-    MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    MinBtn.BackgroundTransparency = 1
-    MinBtn.Parent = Topbar
-    MinBtn.MouseButton1Click:Connect(function()
-        for _, child in ipairs(Window:GetChildren()) do
-            if child ~= Topbar then
-                child.Visible = not child.Visible
-            end
-        end
-        Window.Size = UDim2.new(Window.Size.X.Scale, Window.Size.X.Offset, 0, MinBtn.Text == "-" and 300 or 30)
-        MinBtn.Text = (MinBtn.Text == "-" and "+" or "-")
+    local minimized = false
+    minimize.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        content.Visible = not minimized
+        tabs.Visible = not minimized
     end)
 
-    -- Tab Holder (sol)
-    local TabHolder = Instance.new("Frame")
-    TabHolder.Size = UDim2.new(0, 100, 1, -30)
-    TabHolder.Position = UDim2.new(0, 0, 0, 30)
-    TabHolder.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    TabHolder.BorderSizePixel = 0
-    TabHolder.Parent = Window
+    MakeDraggable(main, topbar)
 
-    -- Content Holder
-    local ContentHolder = Instance.new("Frame")
-    ContentHolder.Size = UDim2.new(1, -100, 1, -30)
-    ContentHolder.Position = UDim2.new(0, 100, 0, 30)
-    ContentHolder.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    ContentHolder.BorderSizePixel = 0
-    ContentHolder.Parent = Window
+    table.insert(SilverUI.Windows, winObj)
+    return winObj
+end
 
-    -- Tabs + Pages
-    local Tabs = {}
-    function SilverUI:CreateTab(name)
-        local TabBtn = Instance.new("TextButton")
-        TabBtn.Size = UDim2.new(1, 0, 0, 30)
-        TabBtn.BackgroundTransparency = 1
-        TabBtn.Text = name
-        TabBtn.Font = Enum.Font.Gotham
-        TabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-        TabBtn.TextSize = 14
-        TabBtn.Parent = TabHolder
+-- Create Tab
+function SilverUI:CreateTab(name)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1,0,0,30)
+    button.Text = name
+    button.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    button.TextColor3 = Color3.new(1,1,1)
+    button.BorderSizePixel = 0
+    button.Parent = self.TabHolder
 
-        local Page = Instance.new("ScrollingFrame")
-        Page.Size = UDim2.new(1, 0, 1, 0)
-        Page.CanvasSize = UDim2.new(0, 0, 0, 0)
-        Page.BackgroundTransparency = 1
-        Page.BorderSizePixel = 0
-        Page.Visible = false
-        Page.Parent = ContentHolder
+    local tabContent = Instance.new("Frame")
+    tabContent.Size = UDim2.new(1,0,1,0)
+    tabContent.BackgroundTransparency = 1
+    tabContent.Visible = false
+    tabContent.Parent = self.Content
 
-        local UIList = Instance.new("UIListLayout", Page)
-        UIList.Padding = UDim.new(0, 5)
+    local uiList = Instance.new("UIListLayout")
+    uiList.Padding = UDim.new(0,5)
+    uiList.FillDirection = Enum.FillDirection.Vertical
+    uiList.SortOrder = Enum.SortOrder.LayoutOrder
+    uiList.Parent = tabContent
 
-        TabBtn.MouseButton1Click:Connect(function()
-            for _, tab in pairs(ContentHolder:GetChildren()) do
-                if tab:IsA("ScrollingFrame") then
-                    tab.Visible = false
-                end
-            end
-            Page.Visible = true
-        end)
+    self.Tabs[name] = tabContent
 
-        if #Tabs == 0 then
-            Page.Visible = true
+    button.MouseButton1Click:Connect(function()
+        for _, tab in pairs(self.Tabs) do
+            tab.Visible = false
         end
+        tabContent.Visible = true
+    end)
 
-        table.insert(Tabs, {Button = TabBtn, Page = Page})
-        return Page
-    end
+    return tabContent
+end
 
-    -- Elements
-    function SilverUI:CreateButton(cfg, parent)
-        local Btn = Instance.new("TextButton")
-        Btn.Size = UDim2.new(1, -10, 0, 30)
-        Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        Btn.Text = cfg.Text or "Button"
-        Btn.Font = Enum.Font.Gotham
-        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Btn.TextSize = 14
-        Btn.Parent = parent
-        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
+-- UI Elements
+function SilverUI:CreateButton(opts)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-10,0,30)
+    btn.Text = opts.Text or "Button"
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BorderSizePixel = 0
+    btn.Parent = opts.Tab
 
-        Btn.MouseButton1Click:Connect(function()
-            if cfg.Callback then cfg.Callback() end
-        end)
-    end
+    btn.MouseButton1Click:Connect(function()
+        if opts.Callback then
+            opts.Callback()
+        end
+    end)
+end
 
-    function SilverUI:CreateToggle(cfg, parent)
-        local Frame = Instance.new("Frame")
-        Frame.Size = UDim2.new(1, -10, 0, 30)
-        Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        Frame.Parent = parent
-        Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 5)
+function SilverUI:CreateToggle(opts)
+    local state = false
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-10,0,30)
+    btn.Text = "[ ] " .. (opts.Text or "Toggle")
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BorderSizePixel = 0
+    btn.Parent = opts.Tab
 
-        local Label = Instance.new("TextLabel")
-        Label.Text = cfg.Text or "Toggle"
-        Label.Size = UDim2.new(1, -40, 1, 0)
-        Label.Font = Enum.Font.Gotham
-        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Label.TextSize = 14
-        Label.BackgroundTransparency = 1
-        Label.TextXAlignment = Enum.TextXAlignment.Left
-        Label.Parent = Frame
-
-        local Btn = Instance.new("TextButton")
-        Btn.Size = UDim2.new(0, 30, 0, 30)
-        Btn.Position = UDim2.new(1, -35, 0, 0)
-        Btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        Btn.Text = ""
-        Btn.Parent = Frame
-        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
-
-        local State = false
-        Btn.MouseButton1Click:Connect(function()
-            State = not State
-            Btn.BackgroundColor3 = State and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(70, 70, 70)
-            if cfg.Callback then cfg.Callback(State) end
-        end)
-    end
-
-    function SilverUI:CreateSlider(cfg, parent)
-        local Frame = Instance.new("Frame")
-        Frame.Size = UDim2.new(1, -10, 0, 40)
-        Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        Frame.Parent = parent
-        Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 5)
-
-        local Label = Instance.new("TextLabel")
-        Label.Text = cfg.Text or "Slider"
-        Label.Size = UDim2.new(1, 0, 0, 20)
-        Label.Font = Enum.Font.Gotham
-        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Label.TextSize = 14
-        Label.BackgroundTransparency = 1
-        Label.TextXAlignment = Enum.TextXAlignment.Left
-        Label.Parent = Frame
-
-        local Bar = Instance.new("Frame")
-        Bar.Size = UDim2.new(1, -10, 0, 15)
-        Bar.Position = UDim2.new(0, 5, 0, 20)
-        Bar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        Bar.Parent = Frame
-        Instance.new("UICorner", Bar).CornerRadius = UDim.new(0, 5)
-
-        local Fill = Instance.new("Frame")
-        Fill.Size = UDim2.new(0.5, 0, 1, 0)
-        Fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-        Fill.Parent = Bar
-        Instance.new("UICorner", Fill).CornerRadius = UDim.new(0, 5)
-
-        local dragging = false
-        local min, max = cfg.Min or 0, cfg.Max or 100
-
-        Bar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-            end
-        end)
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local pos = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-                Fill.Size = UDim2.new(pos, 0, 1, 0)
-                local val = math.floor(min + pos * (max - min))
-                if cfg.Callback then cfg.Callback(val) end
-            end
-        end)
-    end
-
-    return self
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = (state and "[✓] " or "[ ] ") .. (opts.Text or "Toggle")
+        if opts.Callback then
+            opts.Callback(state)
+        end
+    end)
 end
 
 return SilverUI
